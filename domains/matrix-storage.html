@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Matrix Storage &#8212; oneAPI Math Kernel Library Interfaces 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=12dfc556" />
+    <script src="../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="BLAS Routines" href="blas/blas.html" />
+    <link rel="prev" title="Dense Linear Algebra" href="dense_linear_algebra.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="matrix-storage">
+<span id="id1"></span><h1>Matrix Storage<a class="headerlink" href="#matrix-storage" title="Link to this heading">¶</a></h1>
+<div class="docutils container">
+<p>The oneMKL BLAS and LAPACK routines for DPC++ use several matrix and
+vector storage formats. These are the same formats used in
+traditional Fortran BLAS/LAPACK.</p>
+<div class="section docutils container">
+<p class="sectiontitle rubric" id="general-matrix">General Matrix</p>
+<p>A general matrix <code class="docutils literal notranslate"><span class="pre">A</span></code> of <code class="docutils literal notranslate"><span class="pre">m</span></code> rows and <code class="docutils literal notranslate"><span class="pre">n</span></code> columns with
+leading dimension <code class="docutils literal notranslate"><span class="pre">lda</span></code> is represented as a one dimensional
+array <code class="docutils literal notranslate"><span class="pre">a</span></code> of size of at least <code class="docutils literal notranslate"><span class="pre">lda</span></code> * <code class="docutils literal notranslate"><span class="pre">n</span></code> if column major
+layout is used and at least <code class="docutils literal notranslate"><span class="pre">lda</span></code> * <code class="docutils literal notranslate"><span class="pre">m</span></code> if row major layout
+is used.  Before entry in any BLAS function using a general
+matrix, the leading <code class="docutils literal notranslate"><span class="pre">m</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> part of the array <code class="docutils literal notranslate"><span class="pre">a</span></code> must
+contain the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code>. For column (respectively row) major
+layout, the elements of each column (respectively row) are
+contiguous in memory while the elements of each row
+(respectively column) are at distance <code class="docutils literal notranslate"><span class="pre">lda</span></code> from the element
+in the same row (respectively column) and the previous column
+(respectively row).</p>
+<p>Visually, the matrix</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}A = \begin{bmatrix}
+    A_{11} &amp; A_{12} &amp; A_{13} &amp; \ldots &amp; A_{1n}\\
+    A_{21} &amp; A_{22} &amp; A_{23} &amp; \ldots &amp; A_{2n}\\
+    A_{31} &amp; A_{32} &amp; A_{33} &amp; \ldots &amp; A_{3n}\\
+    \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots\\
+    A_{m1} &amp; A_{m2} &amp; A_{m3} &amp; \ldots &amp; A_{mn}
+    \end{bmatrix}\end{split}\]</div>
+<p>is stored in memory as an array</p>
+<ul class="simple">
+<li><p>For column major layout,</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{\underbrace{A_{11},A_{21},A_{31},...,A_{m1},*,...,*}_\text{lda},
+                \underbrace{A_{12},A_{22},A_{32},...,A_{m2},*,...,*}_\text{lda},
+                ...,
+                \underbrace{A_{1n},A_{2n},A_{3n},...,A_{mn},*,...,*}_\text{lda}}
+                _\text{lda x n}]\]</div>
+<ul class="simple">
+<li><p>For row major layout,</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{\underbrace{A_{11},A_{12},A_{13},...,A_{1n},*,...,*}_\text{lda},
+                \underbrace{A_{21},A_{22},A_{23},...,A_{2n},*,...,*}_\text{lda},
+                ...,
+                \underbrace{A_{m1},A_{m2},A_{m3},...,A_{mn},*,...,*}_\text{lda}}
+                _\text{m x lda}]\]</div>
+</div>
+<div class="section docutils container">
+<p class="sectiontitle rubric" id="triangular-matrix">Triangular Matrix</p>
+<p>A triangular matrix <code class="docutils literal notranslate"><span class="pre">A</span></code> of <code class="docutils literal notranslate"><span class="pre">n</span></code> rows and <code class="docutils literal notranslate"><span class="pre">n</span></code> columns with
+leading dimension <code class="docutils literal notranslate"><span class="pre">lda</span></code> is represented as a one dimensional
+array <code class="docutils literal notranslate"><span class="pre">a</span></code>, of a size of at least <code class="docutils literal notranslate"><span class="pre">lda</span></code> * <code class="docutils literal notranslate"><span class="pre">n</span></code>. When column
+(respectively row) major layout is used, the elements of each
+column (respectively row) are contiguous in memory while the
+elements of each row (respectively column) are at distance
+<code class="docutils literal notranslate"><span class="pre">lda</span></code> from the element in the same row (respectively column)
+and the previous column (respectively row).</p>
+<p>Before entry in any BLAS function using a triangular matrix,</p>
+<ul>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">upper_lower</span> <span class="pre">=</span> <span class="pre">uplo::upper</span></code>, the leading <code class="docutils literal notranslate"><span class="pre">n</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code>
+upper triangular part of the array <code class="docutils literal notranslate"><span class="pre">a</span></code> must contain the upper
+triangular part of the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code>. The strictly lower
+triangular part of the array <code class="docutils literal notranslate"><span class="pre">a</span></code> is not referenced. In other
+words, the matrix</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}A = \begin{bmatrix}
+    A_{11} &amp; A_{12} &amp; A_{13} &amp; \ldots &amp; A_{1n}\\
+    *      &amp; A_{22} &amp; A_{23} &amp; \ldots &amp; A_{2n}\\
+    *      &amp; *      &amp; A_{33} &amp; \ldots &amp; A_{3n}\\
+    \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots\\
+    *      &amp; *      &amp; *      &amp; \ldots &amp; A_{nn}
+    \end{bmatrix}\end{split}\]</div>
+<p>is stored in memory as the array</p>
+<ul class="simple">
+<li><p>For column major layout,</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{\underbrace{A_{11},*,...,*}_\text{lda},
+                \underbrace{A_{12},A_{22},*,...,*}_\text{lda},
+                ...,
+                \underbrace{A_{1n},A_{2n},A_{3n},...,A_{nn},*,...,*}_\text{lda}}
+                _\text{lda x n}]\]</div>
+<ul class="simple">
+<li><p>For row major layout,</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{\underbrace{A_{11},A_{12},A_{13},...,A_{1n},*,...,*}_\text{lda},
+                \underbrace{*,A_{22},A_{23},...,A_{2n},*,...,*}_\text{lda},
+                ...,
+                \underbrace{*,...,*,A_{nn},*,...,*}_\text{lda}}
+                _\text{lda x n}]\]</div>
+</li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">upper_lower</span> <span class="pre">=</span> <span class="pre">uplo::lower</span></code>, the leading <code class="docutils literal notranslate"><span class="pre">n</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code>
+lower triangular part of the array <code class="docutils literal notranslate"><span class="pre">a</span></code> must contain the lower
+triangular part of the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code>. The strictly upper
+triangular part of the array <code class="docutils literal notranslate"><span class="pre">a</span></code> is not referenced. That is,
+the matrix</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}A = \begin{bmatrix}
+    A_{11} &amp; *      &amp; *      &amp; \ldots &amp; *     \\
+    A_{21} &amp; A_{22} &amp; *      &amp; \ldots &amp; *     \\
+    A_{31} &amp; A_{32} &amp; A_{33} &amp; \ldots &amp; *     \\
+    \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots\\
+    A_{n1} &amp; A_{n2} &amp; A_{n3} &amp; \ldots &amp; A_{nn}
+    \end{bmatrix}\end{split}\]</div>
+<p>is stored in memory as the array</p>
+<ul class="simple">
+<li><p>For column major layout,</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{\underbrace{A_{11},A_{21},A_{31},..,A_{n1},*,...,*}_\text{lda},
+                \underbrace{*,A_{22},A_{32},...,A_{n2},*,...,*}_\text{lda},
+                ...,
+                \underbrace{*,...,*,A_{nn},*,...,*}_\text{lda}}
+                _\text{lda x n}]\]</div>
+<ul class="simple">
+<li><p>For row major layout,</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{\underbrace{A_{11},*,...,*}_\text{lda},
+                \underbrace{A_{21},A_{22},*,...,*}_\text{lda},
+                ...,
+                \underbrace{A_{n1},A_{n2},A_{n3},...,A_{nn},*,...,*}_\text{lda}}
+                _\text{lda x n}]\]</div>
+</li>
+</ul>
+</div>
+<div class="section docutils container">
+<p class="sectiontitle rubric" id="band-matrix">Band Matrix</p>
+<p>A general band matrix <code class="docutils literal notranslate"><span class="pre">A</span></code> of <code class="docutils literal notranslate"><span class="pre">m</span></code> rows and <code class="docutils literal notranslate"><span class="pre">n</span></code> columns with
+<code class="docutils literal notranslate"><span class="pre">kl</span></code> sub-diagonals, <code class="docutils literal notranslate"><span class="pre">ku</span></code> super-diagonals, and leading
+dimension <code class="docutils literal notranslate"><span class="pre">lda</span></code> is represented as a one dimensional array
+<code class="docutils literal notranslate"><span class="pre">a</span></code> of a size of at least <code class="docutils literal notranslate"><span class="pre">lda</span></code> * <code class="docutils literal notranslate"><span class="pre">n</span></code> (respectively
+<code class="docutils literal notranslate"><span class="pre">lda</span></code> * <code class="docutils literal notranslate"><span class="pre">m</span></code>) if column (respectively row) major layout is
+used.</p>
+<p>Before entry in any BLAS function using a general band matrix,
+the leading (<code class="docutils literal notranslate"><span class="pre">kl</span></code> + <code class="docutils literal notranslate"><span class="pre">ku</span></code> + 1<code class="docutils literal notranslate"><span class="pre">)</span></code> by <code class="docutils literal notranslate"><span class="pre">n</span></code> (respectively
+<code class="docutils literal notranslate"><span class="pre">m</span></code>) part of the array <code class="docutils literal notranslate"><span class="pre">a</span></code> must contain the matrix
+<code class="docutils literal notranslate"><span class="pre">A</span></code>. This matrix must be supplied column-by-column
+(respectively row-by-row), with the main diagonal of the matrix
+in row <code class="docutils literal notranslate"><span class="pre">ku</span></code> (respectively <code class="docutils literal notranslate"><span class="pre">kl</span></code>) of the array (0-based
+indexing), the first super-diagonal starting at position 1
+(respectively 0) in row (<code class="docutils literal notranslate"><span class="pre">ku</span></code> - 1) (respectively column
+(<code class="docutils literal notranslate"><span class="pre">kl</span></code> + 1)), the first sub-diagonal starting at position 0
+(respectively 1) in row (<code class="docutils literal notranslate"><span class="pre">ku</span></code> + 1) (respectively column
+(<code class="docutils literal notranslate"><span class="pre">kl</span></code> - 1)), and so on. Elements in the array <code class="docutils literal notranslate"><span class="pre">a</span></code> that do
+not correspond to elements in the band matrix (such as the top
+left <code class="docutils literal notranslate"><span class="pre">ku</span></code> by <code class="docutils literal notranslate"><span class="pre">ku</span></code> triangle) are not referenced.</p>
+<p>Visually, the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code></p>
+<div class="math notranslate nohighlight">
+\[\begin{split}A = \left[\begin{smallmatrix}
+    A_{11}     &amp; A_{12}     &amp; A_{13}     &amp; \ldots &amp; A_{1,ku+1} &amp; *          &amp; \ldots     &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    A_{21}     &amp; A_{22}     &amp; A_{23}     &amp; A_{24} &amp; \ldots     &amp; A_{2,ku+2} &amp; *          &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    A_{31}     &amp; A_{32}     &amp; A_{33}     &amp; A_{34} &amp; A_{35}     &amp; \ldots     &amp; A_{3,ku+3} &amp; *          &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    \vdots     &amp; A_{42}     &amp; A_{43}     &amp; \ddots &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; *      &amp; \ldots    &amp; \ldots    &amp; \vdots    \\
+    A_{kl+1,1} &amp; \vdots     &amp; A_{53}     &amp; \ddots &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; *         &amp; \ldots    &amp; \vdots    \\
+    *          &amp; A_{kl+2,2} &amp; \vdots     &amp; \ddots &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; \vdots    \\
+    \vdots     &amp; *          &amp; A_{kl+3,3} &amp; \ddots &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; *         \\
+    \vdots     &amp; \vdots     &amp; *          &amp; \ddots &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; A_{n-ku,n}\\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; *      &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; *          &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; A_{m-2,n} \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \vdots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; A_{m-1,n} \\
+    *          &amp; *          &amp; *          &amp; \ldots &amp; \ldots     &amp; \ldots     &amp; *          &amp; A_{m,m-kl} &amp; \ldots &amp; A_{m,n-2} &amp; A_{m,n-1} &amp; A_{m,n}
+    \end{smallmatrix}\right]\end{split}\]</div>
+<p>is stored in memory as an array</p>
+<ul class="simple">
+<li><p>For column major layout,</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\scriptscriptstyle a =
+   [\underbrace{
+    \underbrace{\underbrace{*,...,*}_\text{ku},A_{11}, A_{12},...,A_{min(kl+1,m),1},*,...,*}_\text{lda},
+    \underbrace{\underbrace{*,...,*}_\text{ku-1},A_{max(1,2-ku),2},...,A_{min(kl+2,m),2},*,...*}_\text{lda},
+    ...,
+    \underbrace{\underbrace{*,...,*}_\text{max(0,ku-n+1)},A_{max(1,n-ku),n},...,A_{min(kl+n,m),n},*,...*}_\text{lda}
+    }_\text{lda x n}]\]</div>
+<ul class="simple">
+<li><p>For row major layout,</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\scriptscriptstyle a =
+   [\underbrace{
+    \underbrace{\underbrace{*,...,*}_\text{kl},A_{11}, A_{12},...,A_{1,min(ku+1,n)},*,...,*}_\text{lda},
+    \underbrace{\underbrace{*,...,*}_\text{kl-1},A_{2,max(1,2-kl)},...,A_{2,min(ku+2,n)},*,...*}_\text{lda},
+    ...,
+    \underbrace{\underbrace{*,...,*}_\text{max(0,kl-m+1)},A_{m,max(1,m-kl)},...,A_{m,min(ku+m,n)},*,...*}_\text{lda}
+    }_\text{lda x m}]\]</div>
+<p>The following program segment transfers a band matrix from
+conventional full matrix storage (variable <code class="docutils literal notranslate"><span class="pre">matrix</span></code>, with
+leading dimension <code class="docutils literal notranslate"><span class="pre">ldm</span></code>) to band storage (variable <code class="docutils literal notranslate"><span class="pre">a</span></code>, with
+leading dimension <code class="docutils literal notranslate"><span class="pre">lda</span></code>):</p>
+<ul class="simple">
+<li><p>Using matrices stored with column major layout,</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>for (j = 0; j &lt; n; j++) {
+    k = ku – j;
+    for (i = max(0, j – ku); i &lt; min(m, j + kl + 1); i++) {
+        a[(k + i) + j * lda] = matrix[i + j * ldm];
+    }
+}
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Using matrices stored with row major layout,</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>for (i = 0; i &lt; m; i++) {
+    k = kl – i;
+    for (j = max(0, i – kl); j &lt; min(n, i + ku + 1); j++) {
+        a[(k + j) + i * lda] = matrix[j + i * ldm];
+    }
+}
+</pre></div>
+</div>
+</div>
+<div class="section docutils container">
+<p class="sectiontitle rubric" id="triangular-band-matrix">Triangular Band Matrix</p>
+<p>A triangular band matrix <code class="docutils literal notranslate"><span class="pre">A</span></code> of <code class="docutils literal notranslate"><span class="pre">n</span></code> rows and <code class="docutils literal notranslate"><span class="pre">n</span></code> columns
+with <code class="docutils literal notranslate"><span class="pre">k</span></code> sub/super-diagonals and leading dimension <code class="docutils literal notranslate"><span class="pre">lda</span></code> is
+represented as a one dimensional array <code class="docutils literal notranslate"><span class="pre">a</span></code> of size at least
+<code class="docutils literal notranslate"><span class="pre">lda</span></code> * <code class="docutils literal notranslate"><span class="pre">n</span></code>.</p>
+<p>Before entry in any BLAS function using a triangular band matrix,</p>
+<ul>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">upper_lower</span> <span class="pre">=</span> <span class="pre">uplo::upper</span></code>, the leading (<code class="docutils literal notranslate"><span class="pre">k</span></code> + 1) by <code class="docutils literal notranslate"><span class="pre">n</span></code>
+part of the array <code class="docutils literal notranslate"><span class="pre">a</span></code> must contain the upper
+triangular band part of the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code>. When using column
+major layout, this matrix must be supplied column-by-column
+(respectively row-by-row) with the main diagonal of the
+matrix in row (<code class="docutils literal notranslate"><span class="pre">k</span></code>) (respectively column 0) of the array,
+the first super-diagonal starting at position 1
+(respectively 0) in row (<code class="docutils literal notranslate"><span class="pre">k</span></code> - 1) (respectively column 1),
+and so on. Elements in the array <code class="docutils literal notranslate"><span class="pre">a</span></code> that do not correspond
+to elements in the triangular band matrix (such as the top
+left <code class="docutils literal notranslate"><span class="pre">k</span></code> by <code class="docutils literal notranslate"><span class="pre">k</span></code> triangle) are not referenced.</p>
+<p>Visually, the matrix</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}A = \left[\begin{smallmatrix}
+    A_{11}     &amp; A_{12}     &amp; A_{13}     &amp; \ldots &amp; A_{1,k+1} &amp; *          &amp; \ldots      &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    *          &amp; A_{22}     &amp; A_{23}     &amp; A_{24} &amp; \ldots     &amp; A_{2,k+2} &amp; *           &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    \vdots     &amp; *          &amp; A_{33}     &amp; A_{34} &amp; A_{35}     &amp; \ldots     &amp; A_{3,k+3}  &amp; *          &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    \vdots     &amp; \vdots     &amp; *          &amp; \ddots &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; *      &amp; \ldots    &amp; \ldots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \ddots &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; *         &amp; \ldots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \vdots     &amp; \ddots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; *         \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \vdots     &amp; \vdots     &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; A_{n-k,n}\\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \vdots     &amp; \vdots     &amp; \vdots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; A_{n-2,n} \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \ddots    &amp; \ddots    &amp; A_{n-1,n} \\
+    *          &amp; *          &amp; *          &amp; \ldots &amp; \ldots     &amp; \ldots     &amp; \ldots     &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; *         &amp; A_{n,n}
+    \end{smallmatrix}\right]\end{split}\]</div>
+<p>is stored as an array</p>
+</li>
+</ul>
+<div class="fignone docutils container">
+<ul>
+<li><p>For column major layout,</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{
+    \underbrace{\underbrace{*,...,*}_\text{ku},A_{11},*,...,*}_\text{lda},
+    \underbrace{\underbrace{*,...,*}_\text{ku-1},A_{max(1,2-k),2},...,A_{2,2},*,...*}_\text{lda},
+    ...,
+    \underbrace{\underbrace{*,...,*}_\text{max(0,k-n+1)},A_{max(1,n-k),n},...,A_{n,n},*,...*}_\text{lda}
+    }_\text{lda x n}]\]</div>
+</div></blockquote>
+</li>
+<li><p>For row major layout,</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{
+    \underbrace{A_{11},A_{21},...,A_{min(k+1,n),1},*,...,*}_\text{lda},
+    \underbrace{A_{2,2},...,A_{min(k+2,n),2},*,...,*}_\text{lda},
+    ...,
+    \underbrace{A_{n,n},*,...*}_\text{lda}
+    }_\text{lda x n}]\]</div>
+</div></blockquote>
+</li>
+</ul>
+<p>The following program segment transfers a band matrix from
+conventional full matrix storage (variable <code class="docutils literal notranslate"><span class="pre">matrix</span></code>, with
+leading dimension <code class="docutils literal notranslate"><span class="pre">ldm</span></code>) to band storage (variable <code class="docutils literal notranslate"><span class="pre">a</span></code>,
+with leading dimension <code class="docutils literal notranslate"><span class="pre">lda</span></code>):</p>
+<ul class="simple">
+<li><p>Using matrices stored with column major layout,</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>for (j = 0; j &lt; n; j++) {
+    m = k – j;
+    for (i = max(0, j – k); i &lt;= j; i++) {
+        a[(m + i) + j * lda] = matrix[i + j * ldm];
+    }
+}
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Using matrices stored with column major layout,</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>for (i = 0; i &lt; n; i++) {
+    m = –i;
+    for (j = i; j &lt; min(n, i + k + 1); j++) {
+        a[(m + j) + i * lda] = matrix[j + i * ldm];
+    }
+}
+</pre></div>
+</div>
+</div>
+<ul>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">upper_lower</span> <span class="pre">=</span> <span class="pre">uplo::lower</span></code>, the leading (<code class="docutils literal notranslate"><span class="pre">k</span></code> + 1) by <code class="docutils literal notranslate"><span class="pre">n</span></code>
+part of the array <code class="docutils literal notranslate"><span class="pre">a</span></code> must contain the upper triangular
+band part of the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code>. This matrix must be supplied
+column-by-column with the main diagonal of the matrix in row 0
+of the array, the first sub-diagonal starting at position 0 in
+row 1, and so on. Elements in the array <code class="docutils literal notranslate"><span class="pre">a</span></code> that do not
+correspond to elements in the triangular band matrix (such as
+the bottom right <code class="docutils literal notranslate"><span class="pre">k</span></code> by <code class="docutils literal notranslate"><span class="pre">k</span></code> triangle) are not referenced.</p>
+<p>That is, the matrix</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}A = \left[\begin{smallmatrix}
+    A_{11}     &amp; *          &amp; \ldots     &amp; \ldots &amp; \ldots     &amp; \ldots    &amp; \ldots     &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    A_{21}     &amp; A_{22}     &amp; *          &amp; \ldots &amp; \ldots     &amp; \ldots    &amp; \ldots     &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    A_{31}     &amp; A_{32}     &amp; A_{33}     &amp; *      &amp; \ldots     &amp; \ldots    &amp; \ldots     &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; *         \\
+    \vdots     &amp; A_{42}     &amp; A_{43}     &amp; \ddots &amp; \ddots     &amp; \ldots    &amp; \ldots     &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; \vdots    \\
+    A_{k+1,1}  &amp; \vdots     &amp; A_{53}     &amp; \ddots &amp; \ddots     &amp; \ddots    &amp; \ldots     &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; \vdots    \\
+    *          &amp; A_{k+2,2}  &amp; \vdots     &amp; \ddots &amp; \ddots     &amp; \ddots    &amp; \ddots     &amp; \ldots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; \vdots    \\
+    \vdots     &amp; *          &amp; A_{k+3,3}  &amp; \ddots &amp; \ddots     &amp; \ddots    &amp; \ddots     &amp; \ddots     &amp; \ldots &amp; \ldots    &amp; \ldots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; *          &amp; \ddots &amp; \ddots     &amp; \ddots    &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ldots    &amp; \ldots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; *      &amp; \ddots     &amp; \ddots    &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ldots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; *          &amp; \ddots    &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; \vdots    \\
+    \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots &amp; \vdots     &amp; \ddots    &amp; \ddots     &amp; \ddots     &amp; \ddots &amp; \ddots    &amp; \ddots    &amp; *         \\
+    *          &amp; *          &amp; *          &amp; \ldots &amp; \ldots     &amp; \ldots    &amp; *          &amp; A_{n,n-k}  &amp; \ldots &amp; A_{n,n-2} &amp; A_{n,n-1} &amp; A_{n,n}
+    \end{smallmatrix}\right]\end{split}\]</div>
+<p>is stored as the array</p>
+</li>
+</ul>
+<div class="fignone docutils container">
+<ul>
+<li><p>For column major layout,</p>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{
+    \underbrace{A_{11},A_{21},...,A_{min(k+1,n),1},*,...,*}_\text{lda},
+    \underbrace{A_{2,2},...,A_{min(k+2,n),2},*,...,*}_\text{lda},
+    ...,
+    \underbrace{A_{n,n},*,...*}_\text{lda}
+    }_\text{lda x n}]\]</div>
+</li>
+<li><p>For row major layout,</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\scriptstyle a =
+   [\underbrace{
+    \underbrace{\underbrace{*,...,*}_\text{k},A_{11},*,...,*}_\text{lda},
+    \underbrace{\underbrace{*,...,*}_\text{k-1},A_{max(1,2-k),2},...,A_{2,2},*,...*}_\text{lda},
+    ...,
+    \underbrace{\underbrace{*,...,*}_\text{max(0,k-n+1)},A_{max(1,n-k),n},...,A_{n,n},*,...*}_\text{lda}
+    }_\text{lda x n}]\]</div>
+</div></blockquote>
+</li>
+</ul>
+<p>The following program segment transfers a band matrix from
+conventional full matrix storage (variable <code class="docutils literal notranslate"><span class="pre">matrix</span></code>, with
+leading dimension <code class="docutils literal notranslate"><span class="pre">ldm</span></code>) to band storage (variable <code class="docutils literal notranslate"><span class="pre">a</span></code>,
+with leading dimension <code class="docutils literal notranslate"><span class="pre">lda</span></code>):</p>
+<ul class="simple">
+<li><p>Using matrices stored with column major layout,</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>for (j = 0; j &lt; n; j++) {
+    m = –j;
+    for (i = j; i &lt; min(n, j + k + 1); i++) {
+        a[(m + i) + j * lda] = matrix[i + j * ldm];
+    }
+}
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Using matrices stored with row major layout,</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>for (i = 0; i &lt; n; i++) {
+    m = k – i;
+    for (j = max(0, i – k); j &lt;= i; j++) {
+        a[(m + j) + i * lda] = matrix[j + i * ldm];
+    }
+}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section docutils container">
+<p class="sectiontitle rubric" id="packed-triangular-matrix">Packed Triangular Matrix</p>
+<p>A triangular matrix <code class="docutils literal notranslate"><span class="pre">A</span></code> of <code class="docutils literal notranslate"><span class="pre">n</span></code> rows and <code class="docutils literal notranslate"><span class="pre">n</span></code> columns is
+represented in packed format as a one dimensional array <code class="docutils literal notranslate"><span class="pre">a</span></code> of
+size at least (<code class="docutils literal notranslate"><span class="pre">n</span></code>*(<code class="docutils literal notranslate"><span class="pre">n</span></code> + 1))/2. All elements in the upper
+or lower part of the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code> are stored contiguously in the
+array <code class="docutils literal notranslate"><span class="pre">a</span></code>.</p>
+<p>Before entry in any BLAS function using a triangular packed
+matrix,</p>
+<ul>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">upper_lower</span> <span class="pre">=</span> <span class="pre">uplo::upper</span></code>, if column (respectively row)
+major layout is used, the first (<code class="docutils literal notranslate"><span class="pre">n</span></code>*(<code class="docutils literal notranslate"><span class="pre">n</span></code> + 1))/2
+elements in the array <code class="docutils literal notranslate"><span class="pre">a</span></code> must contain the upper triangular
+part of the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code> packed sequentially, column by column
+(respectively row by row) so that <code class="docutils literal notranslate"><span class="pre">a</span></code>[0] contains <code class="docutils literal notranslate"><span class="pre">A</span></code><sub>11</sub>, <code class="docutils literal notranslate"><span class="pre">a</span></code>[1] and <code class="docutils literal notranslate"><span class="pre">a</span></code>[2] contain <code class="docutils literal notranslate"><span class="pre">A</span></code><sub>12</sub>
+and <code class="docutils literal notranslate"><span class="pre">A</span></code><sub>22</sub> (respectively <code class="docutils literal notranslate"><span class="pre">A</span></code><sub>13</sub>)
+respectively, and so on. Hence, the matrix</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}A = \begin{bmatrix}
+    A_{11} &amp; A_{12} &amp; A_{13} &amp; \ldots &amp; A_{1n}\\
+    *      &amp; A_{22} &amp; A_{23} &amp; \ldots &amp; A_{2n}\\
+    *      &amp; *      &amp; A_{33} &amp; \ldots &amp; A_{3n}\\
+    \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots\\
+    *      &amp; *      &amp; *      &amp; \ldots &amp; A_{nn}
+    \end{bmatrix}\end{split}\]</div>
+<p>is stored as the array</p>
+<ul>
+<li><p>For column major layout,</p>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a = [A_{11},A_{12},A_{22},A_{13},A_{23},A_{33},...,A_{(n-1),n},A_{nn}]\]</div>
+</li>
+<li><p>For row major layout,</p>
+<div class="math notranslate nohighlight">
+\[\scriptstyle a = [A_{11},A_{12},A_{13},...,A_{1n},
+     A_{22},A_{23},...,A_{2n},...,
+     A_{(n-1),(n-1)},A_{(n-1),n},A_{nn}]\]</div>
+</li>
+</ul>
+</li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">upper_lower</span> <span class="pre">=</span> <span class="pre">uplo::lower</span></code>, if column (respectively row)
+major layout is used, the first (<code class="docutils literal notranslate"><span class="pre">n</span></code>*(<code class="docutils literal notranslate"><span class="pre">n</span></code> + 1))/2
+elements in the array <code class="docutils literal notranslate"><span class="pre">a</span></code> must contain the lower triangular
+part of the matrix <code class="docutils literal notranslate"><span class="pre">A</span></code> packed sequentially, column by column
+(row by row) so that <code class="docutils literal notranslate"><span class="pre">a</span></code>[0] contains <code class="docutils literal notranslate"><span class="pre">A</span></code><sub>11</sub>,
+<code class="docutils literal notranslate"><span class="pre">a</span></code>[1] and <code class="docutils literal notranslate"><span class="pre">a</span></code>[2] contain <code class="docutils literal notranslate"><span class="pre">A</span></code><sub>21</sub> and <code class="docutils literal notranslate"><span class="pre">A</span></code><sub>31</sub> (respectively <code class="docutils literal notranslate"><span class="pre">A</span></code><sub>22</sub>) respectively, and so
+on. The matrix</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\begin{split}A = \begin{bmatrix}
+    A_{11} &amp; *      &amp; *      &amp; \ldots &amp; *     \\
+    A_{21} &amp; A_{22} &amp; *      &amp; \ldots &amp; *     \\
+    A_{31} &amp; A_{32} &amp; A_{33} &amp; \ldots &amp; *     \\
+    \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots\\
+    A_{n1} &amp; A_{n2} &amp; A_{n3} &amp; \ldots &amp; A_{nn}
+    \end{bmatrix}\end{split}\]</div>
+<p>is stored as the array</p>
+<ul class="simple">
+<li><p>For column major layout,</p></li>
+</ul>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\scriptstyle a = [A_{11},A_{21},A_{31},...,A_{n1},
+     A_{22},A_{32},...,A_{n2},...,
+     A_{(n-1),(n-1)},A_{n,(n-1)},A_{nn}]\]</div>
+</div></blockquote>
+<ul class="simple">
+<li><p>For row major layout,</p></li>
+</ul>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\scriptstyle a = [A_{11},A_{21},A_{22},A_{31},A_{32},A_{33},...,A_{n,(n-1)},A_{nn}]\]</div>
+</div></blockquote>
+</div></blockquote>
+</li>
+</ul>
+</div>
+<div class="section docutils container">
+<p class="sectiontitle rubric" id="vector">Vector</p>
+<p>A vector <code class="docutils literal notranslate"><span class="pre">X</span></code> of <code class="docutils literal notranslate"><span class="pre">n</span></code> elements with increment <code class="docutils literal notranslate"><span class="pre">incx</span></code> is
+represented as a one dimensional array <code class="docutils literal notranslate"><span class="pre">x</span></code> of size at least (1 +
+(<code class="docutils literal notranslate"><span class="pre">n</span></code> - 1) * abs(<code class="docutils literal notranslate"><span class="pre">incx</span></code>)).</p>
+<p>Visually, the vector</p>
+<div class="math notranslate nohighlight">
+\[X = (X_{1},X_{2}, X_{3},...,X_{n})\]</div>
+<p>is stored in memory as an array</p>
+<div class="math notranslate nohighlight">
+\[\scriptstyle x = [\underbrace{
+    \underbrace{X_{1},*,...,*}_\text{incx},
+    \underbrace{X_{2},*,...,*}_\text{incx},
+    ...,
+    \underbrace{X_{n-1},*,...,*}_\text{incx},X_{n}
+    }_\text{1 + (n-1) x incx}] \quad if \:incx \:&gt; \:0\]</div>
+<div class="math notranslate nohighlight">
+\[\scriptstyle x = [\underbrace{
+    \underbrace{X_{n},*,...,*}_\text{|incx|},
+    \underbrace{X_{n-1},*,...,*}_\text{|incx|},
+    ...,
+    \underbrace{X_{2},*,...,*}_\text{|incx|},X_{1}
+    }_\text{1 + (1-n) x incx}] \quad if \:incx \:&lt; \:0\]</div>
+</div>
+</div>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">oneAPI Math Kernel Library Interfaces</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../selecting_a_compiler.html">Selecting a Compiler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../building_the_project.html">Building the Project</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../onemkl-datatypes.html">oneMKL Defined Datatypes</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="dense_linear_algebra.html">Dense Linear Algebra</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Matrix Storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="blas/blas.html">BLAS Routines</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lapack/lapack.html">LAPACK Routines</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../create_new_backend.html">Integrating a Third-Party Library to oneAPI Math Kernel Library (oneMKL) Interfaces</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="dense_linear_algebra.html">Dense Linear Algebra</a><ul>
+      <li>Previous: <a href="dense_linear_algebra.html" title="previous chapter">Dense Linear Algebra</a></li>
+      <li>Next: <a href="blas/blas.html" title="next chapter">BLAS Routines</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2020, Intel Corporation.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+      |
+      <a href="../_sources/domains/matrix-storage.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

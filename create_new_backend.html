@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Integrating a Third-Party Library to oneAPI Math Kernel Library (oneMKL) Interfaces &#8212; oneAPI Math Kernel Library Interfaces 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=12dfc556" />
+    <script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="ungqr_batch_scratchpad_size" href="domains/lapack/ungqr_batch_scratchpad_size.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="integrating-a-third-party-library-to-oneapi-math-kernel-library-onemkl-interfaces">
+<span id="create-backend-wrappers"></span><h1>Integrating a Third-Party Library to oneAPI Math Kernel Library (oneMKL) Interfaces<a class="headerlink" href="#integrating-a-third-party-library-to-oneapi-math-kernel-library-onemkl-interfaces" title="Link to this heading">¶</a></h1>
+<p>This step-by-step tutorial provides examples for enabling new third-party libraries in oneMKL.</p>
+<p>oneMKL has a header-based implementation of the interface layer (<code class="docutils literal notranslate"><span class="pre">include</span></code> directory) and a source-based implementation of the backend layer for each third-party library (<code class="docutils literal notranslate"><span class="pre">src</span></code> directory). To enable a third-party library, you must update both parts of oneMKL and integrate the new third-party library to the oneMKL build and test systems.</p>
+<p>For the new backend library and header naming please use the following template:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">onemkl_</span><span class="o">&lt;</span><span class="n">domain</span><span class="o">&gt;</span><span class="n">_</span><span class="o">&lt;</span><span class="mi">3</span><span class="n">rd</span><span class="o">-</span><span class="n">party</span> <span class="n">library</span> <span class="n">short</span> <span class="n">name</span><span class="o">&gt;</span><span class="p">[</span><span class="o">&lt;</span><span class="n">wrapper</span> <span class="k">for</span> <span class="n">specific</span> <span class="n">target</span><span class="o">&gt;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Where <code class="docutils literal notranslate"><span class="pre">&lt;wrapper</span> <span class="pre">for</span> <span class="pre">specific</span> <span class="pre">target&gt;</span></code> is required only if multiple wrappers are provided from the same 3rd-party library, e.g., wrappers with Intel oneMKL C API for CPU target <code class="docutils literal notranslate"><span class="pre">onemkl_blas_mklcpu.so</span></code> and wrappers with Intel oneMKL DPC++ API for GPU target <code class="docutils literal notranslate"><span class="pre">onemkl_blas_mklgpu.so</span></code>.</p>
+<p>If there is no need for multiple wrappers only <code class="docutils literal notranslate"><span class="pre">&lt;domain&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;3rd-party</span> <span class="pre">library</span> <span class="pre">short</span> <span class="pre">name&gt;</span></code> are required, e.g. <code class="docutils literal notranslate"><span class="pre">onemkl_rng_curand.so</span></code></p>
+<p><a class="reference internal" href="#create-header-files">1. Create Header Files</a></p>
+<p><a class="reference internal" href="#id1">2. Integrate Header Files</a></p>
+<p><a class="reference internal" href="#create-wrappers">3. Create Wrappers</a></p>
+<p><a class="reference internal" href="#integrate-wrappers-to-the-build-system">4. Integrate Wrappers To the Build System</a></p>
+<p><a class="reference internal" href="#update-the-test-system">5. Update the Test System</a></p>
+<section id="create-header-files">
+<span id="generate-header-files"></span><h2>1. Create Header Files<a class="headerlink" href="#create-header-files" title="Link to this heading">¶</a></h2>
+<p>For each new backend library, you should create the following two header files:</p>
+<ul class="simple">
+<li><p>Header file with a declaration of entry points to the new third-party library wrappers</p></li>
+<li><p>Compiler-time dispatching interface (see <a class="reference external" href="../README.md#supported-usage-models">oneMKL Usage Models</a>) for new third-party libraries</p></li>
+</ul>
+<p><strong>Header File Example</strong>: command to generate the header file with a declaration of BLAS entry points in the oneapi::mkl::newlib namespace</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/generate_backend_api.py<span class="w"> </span>include/oneapi/mkl/blas.hpp<span class="w"> </span><span class="se">\ </span><span class="w">                                 </span><span class="c1"># Base header file</span>
+<span class="w">                                       </span>include/oneapi/mkl/blas/detail/newlib/onemkl_blas_newlib.hpp<span class="w"> </span><span class="se">\ </span><span class="c1"># Output header file</span>
+<span class="w">                                       </span>oneapi::mkl::newlib<span class="w">                                            </span><span class="c1"># Wrappers namespace</span>
+</pre></div>
+</div>
+<p>Code snippet of the generated header file <code class="docutils literal notranslate"><span class="pre">include/oneapi/mkl/blas/detail/newlib/onemkl_blas_newlib.hpp</span></code></p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">oneapi</span><span class="w"> </span><span class="p">{</span>
+<span class="k">namespace</span><span class="w"> </span><span class="nn">mkl</span><span class="w"> </span><span class="p">{</span>
+<span class="k">namespace</span><span class="w"> </span><span class="nn">newlib</span><span class="w"> </span><span class="p">{</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">asum</span><span class="p">(</span><span class="n">sycl</span><span class="o">::</span><span class="n">queue</span><span class="w"> </span><span class="o">&amp;</span><span class="n">queue</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">int64_t</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">sycl</span><span class="o">::</span><span class="n">buffer</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">int64_t</span><span class="w"> </span><span class="n">incx</span><span class="p">,</span>
+<span class="w">          </span><span class="n">sycl</span><span class="o">::</span><span class="n">buffer</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">result</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><strong>Compile-time Dispatching Interface Example</strong>: command to generate the compile-time dispatching interface template instantiations for <code class="docutils literal notranslate"><span class="pre">newlib</span></code> and supported device <code class="docutils literal notranslate"><span class="pre">newdevice</span></code></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/generate_ct_instant.py<span class="w">   </span>include/oneapi/mkl/blas/detail/blas_ct_templates.hpp<span class="w"> </span><span class="se">\ </span><span class="w">        </span><span class="c1"># Base header file</span>
+<span class="w">                                        </span>include/oneapi/mkl/blas/detail/newlib/blas_ct.hpp<span class="w"> </span><span class="se">\ </span><span class="w">           </span><span class="c1"># Output header file</span>
+<span class="w">                                        </span>include/oneapi/mkl/blas/detail/newlib/onemkl_blas_newlib.hpp<span class="w"> </span><span class="se">\ </span><span class="c1"># Header file with declaration of entry points to wrappers</span>
+<span class="w">                                        </span>newlib<span class="w"> </span><span class="se">\ </span><span class="w">                                                      </span><span class="c1"># Library name</span>
+<span class="w">                                        </span>newdevice<span class="w"> </span><span class="se">\ </span><span class="w">                                                   </span><span class="c1"># Backend name</span>
+<span class="w">                                        </span>oneapi::mkl::newlib<span class="w">                                            </span><span class="c1"># Wrappers namespace</span>
+</pre></div>
+</div>
+<p>Code snippet of the generated header file <code class="docutils literal notranslate"><span class="pre">include/oneapi/mkl/blas/detail/newlib/blas_ct.hpp</span></code></p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">oneapi</span><span class="w"> </span><span class="p">{</span>
+<span class="k">namespace</span><span class="w"> </span><span class="nn">mkl</span><span class="w"> </span><span class="p">{</span>
+<span class="k">namespace</span><span class="w"> </span><span class="nn">blas</span><span class="w"> </span><span class="p">{</span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;&gt;</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">asum</span><span class="o">&lt;</span><span class="n">library</span><span class="o">::</span><span class="n">newlib</span><span class="p">,</span><span class="w"> </span><span class="n">backend</span><span class="o">::</span><span class="n">newdevice</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sycl</span><span class="o">::</span><span class="n">queue</span><span class="w"> </span><span class="o">&amp;</span><span class="n">queue</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">int64_t</span><span class="w"> </span><span class="n">n</span><span class="p">,</span>
+<span class="w">                                               </span><span class="n">sycl</span><span class="o">::</span><span class="n">buffer</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">int64_t</span><span class="w"> </span><span class="n">incx</span><span class="p">,</span>
+<span class="w">                                               </span><span class="n">sycl</span><span class="o">::</span><span class="n">buffer</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">result</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">asum_precondition</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">incx</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">);</span>
+<span class="w">    </span><span class="n">oneapi</span><span class="o">::</span><span class="n">mkl</span><span class="o">::</span><span class="n">newlib</span><span class="o">::</span><span class="n">asum</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">incx</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">);</span>
+<span class="w">    </span><span class="n">asum_postcondition</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">incx</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="integrate-header-files">
+<span id="id1"></span><h2>2. Integrate Header Files<a class="headerlink" href="#integrate-header-files" title="Link to this heading">¶</a></h2>
+<p>Below you can see structure of oneMKL top-level include directory:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">include</span><span class="o">/</span>
+    <span class="n">oneapi</span><span class="o">/</span>
+        <span class="n">mkl</span><span class="o">/</span>
+            <span class="n">mkl</span><span class="o">.</span><span class="n">hpp</span> <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">spec</span> <span class="n">APIs</span>
+            <span class="n">types</span><span class="o">.</span><span class="n">hpp</span>  <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">spec</span> <span class="n">types</span>
+            <span class="n">blas</span><span class="o">.</span><span class="n">hpp</span>   <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">BLAS</span> <span class="n">APIs</span> <span class="n">w</span><span class="o">/</span> <span class="n">pre</span><span class="o">-</span><span class="n">check</span><span class="o">/</span><span class="n">dispatching</span><span class="o">/</span><span class="n">post</span><span class="o">-</span><span class="n">check</span>
+            <span class="n">detail</span><span class="o">/</span>    <span class="o">-&gt;</span> <span class="n">implementation</span> <span class="n">specific</span> <span class="n">header</span> <span class="n">files</span>
+                <span class="n">exceptions</span><span class="o">.</span><span class="n">hpp</span>        <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">exception</span> <span class="n">classes</span>
+                <span class="n">backends</span><span class="o">.</span><span class="n">hpp</span>          <span class="o">-&gt;</span> <span class="nb">list</span> <span class="n">of</span> <span class="n">oneMKL</span> <span class="n">backends</span>
+                <span class="n">backends_table</span><span class="o">.</span><span class="n">hpp</span>    <span class="o">-&gt;</span> <span class="n">table</span> <span class="n">of</span> <span class="n">backend</span> <span class="n">libraries</span> <span class="k">for</span> <span class="n">each</span> <span class="n">domain</span> <span class="ow">and</span> <span class="n">device</span>
+                <span class="n">get_device_id</span><span class="o">.</span><span class="n">hpp</span>     <span class="o">-&gt;</span> <span class="n">function</span> <span class="n">to</span> <span class="n">query</span> <span class="n">device</span> <span class="n">information</span> <span class="kn">from</span> <span class="nn">queue</span> <span class="k">for</span> <span class="n">Run</span><span class="o">-</span><span class="n">time</span> <span class="n">dispatching</span>
+            <span class="n">blas</span><span class="o">/</span>
+                <span class="n">predicates</span><span class="o">.</span><span class="n">hpp</span> <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">BLAS</span> <span class="n">pre</span><span class="o">-</span><span class="n">check</span> <span class="n">post</span><span class="o">-</span><span class="n">check</span>
+                <span class="n">detail</span><span class="o">/</span>        <span class="o">-&gt;</span> <span class="n">BLAS</span> <span class="n">domain</span> <span class="n">specific</span> <span class="n">implementation</span> <span class="n">details</span>
+                    <span class="n">blas_loader</span><span class="o">.</span><span class="n">hpp</span>       <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">Run</span><span class="o">-</span><span class="n">time</span> <span class="n">BLAS</span> <span class="n">API</span>
+                    <span class="n">blas_ct_templates</span><span class="o">.</span><span class="n">hpp</span> <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">Compile</span><span class="o">-</span><span class="n">time</span> <span class="n">BLAS</span> <span class="n">API</span> <span class="n">general</span> <span class="n">templates</span>
+                    <span class="n">cublas</span><span class="o">/</span>
+                        <span class="n">blas_ct</span><span class="o">.</span><span class="n">hpp</span>            <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">Compile</span><span class="o">-</span><span class="n">time</span> <span class="n">BLAS</span> <span class="n">API</span> <span class="n">template</span> <span class="n">instantiations</span> <span class="k">for</span> <span class="o">&lt;</span><span class="n">cublas</span><span class="o">&gt;</span>
+                        <span class="n">onemkl_blas_cublas</span><span class="o">.</span><span class="n">hpp</span> <span class="o">-&gt;</span> <span class="n">backend</span> <span class="n">wrappers</span> <span class="n">library</span> <span class="n">API</span>
+                    <span class="n">mklcpu</span><span class="o">/</span>
+                        <span class="n">blas_ct</span><span class="o">.</span><span class="n">hpp</span>            <span class="o">-&gt;</span> <span class="n">oneMKL</span> <span class="n">Compile</span><span class="o">-</span><span class="n">time</span> <span class="n">BLAS</span> <span class="n">API</span> <span class="n">template</span> <span class="n">instantiations</span> <span class="k">for</span> <span class="o">&lt;</span><span class="n">mklcpu</span><span class="o">&gt;</span>
+                        <span class="n">onemkl_blas_mklcpu</span><span class="o">.</span><span class="n">hpp</span> <span class="o">-&gt;</span> <span class="n">backend</span> <span class="n">wrappers</span> <span class="n">library</span> <span class="n">API</span>
+                    <span class="o">&lt;</span><span class="n">other</span> <span class="n">backends</span><span class="o">&gt;/</span>
+            <span class="o">&lt;</span><span class="n">other</span> <span class="n">domains</span><span class="o">&gt;/</span>
+</pre></div>
+</div>
+<p>To integrate the new third-party library to a oneMKL header-based part, following files from this structure should be updated:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">include/oneapi/mkl/detail/backends.hpp</span></code>: add the new backend</p>
+<p><strong>Example</strong>: add the <code class="docutils literal notranslate"><span class="pre">newbackend</span></code> backend</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  enum class backend { mklcpu,
+<span class="gi">+                       newbackend,</span>
+</pre></div>
+</div>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  static backendmap backend_map = { { backend::mklcpu, &quot;mklcpu&quot; },
+<span class="gi">+                                    { backend::newbackend, &quot;newbackend&quot; },</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">include/oneapi/mkl/detail/backends_table.hpp</span></code>: add new backend library for supported domain(s) and device(s)</p>
+<p><strong>Example</strong>: enable <code class="docutils literal notranslate"><span class="pre">newlib</span></code> for <code class="docutils literal notranslate"><span class="pre">blas</span></code> domain and <code class="docutils literal notranslate"><span class="pre">newdevice</span></code> device</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  enum class device : uint16_t { x86cpu,
+<span class="w"> </span>                                 ...
+<span class="gi">+                                 newdevice</span>
+<span class="w"> </span>                               };
+
+<span class="w"> </span>  static std::map&lt;domain, std::map&lt;device, std::vector&lt;const char*&gt;&gt;&gt; libraries = {
+<span class="w"> </span>      { domain::blas,
+<span class="w"> </span>        { { device::x86cpu,
+<span class="w"> </span>            {
+<span class="w"> </span>  #ifdef ENABLE_MKLCPU_BACKEND
+<span class="w"> </span>                LIB_NAME(&quot;blas_mklcpu&quot;)
+<span class="w"> </span>  #endif
+<span class="w"> </span>             } },
+<span class="gi">+          { device::newdevice,</span>
+<span class="gi">+            {</span>
+<span class="gi">+  #ifdef ENABLE_NEWLIB_BACKEND</span>
+<span class="gi">+                 LIB_NAME(&quot;blas_newlib&quot;)</span>
+<span class="gi">+  #endif</span>
+<span class="gi">+             } },</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">include/oneapi/mkl/detail/get_device_id.hpp</span></code>: add new device detection mechanism for Run-time dispatching</p>
+<p><strong>Example</strong>: enable <code class="docutils literal notranslate"><span class="pre">newdevice</span></code> if the queue is targeted for the Host</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  inline oneapi::mkl::device get_device_id(sycl::queue &amp;queue) {
+<span class="w"> </span>      oneapi::mkl::device device_id;
+<span class="gi">+      if (queue.is_host())</span>
+<span class="gi">+          device_id=device::newdevice;</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">include/oneapi/mkl/blas.hpp</span></code>: include the generated header file for the compile-time dispatching interface (see <a class="reference external" href="../README.md#supported-usage-models">oneMKL Usage Models</a>)</p>
+<p><strong>Example</strong>: add <code class="docutils literal notranslate"><span class="pre">include/oneapi/mkl/blas/detail/newlib/blas_ct.hpp</span></code> generated at the <a class="reference internal" href="#create-header-files">1. Create Header Files</a> step</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  #include &quot;oneapi/mkl/blas/detail/mklcpu/blas_ct.hpp&quot;
+<span class="w"> </span>  #include &quot;oneapi/mkl/blas/detail/mklgpu/blas_ct.hpp&quot;
+<span class="gi">+  #include &quot;oneapi/mkl/blas/detail/newlib/blas_ct.hpp&quot;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>The new files generated at the <a class="reference internal" href="#create-header-files">1. Create Header Files</a> step result in the following updated structure of the BLAS domain header files.</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span>include/
+<span class="w"> </span>   oneapi/
+<span class="w"> </span>       mkl/
+<span class="w"> </span>           blas.hpp -&gt; oneMKL BLAS APIs w/ pre-check/dispatching/post-check
+<span class="w"> </span>           blas/
+<span class="w"> </span>               predicates.hpp -&gt; oneMKL BLAS pre-check post-check
+<span class="w"> </span>               detail/        -&gt; BLAS domain specific implementation details
+<span class="w"> </span>                   blas_loader.hpp       -&gt; oneMKL Run-time BLAS API
+<span class="w"> </span>                   blas_ct_templates.hpp -&gt; oneMKL Compile-time BLAS API general templates
+<span class="w"> </span>                   cublas/
+<span class="w"> </span>                       blas_ct.hpp            -&gt; oneMKL Compile-time BLAS API template instantiations for &lt;cublas&gt;
+<span class="w"> </span>                       onemkl_blas_cublas.hpp -&gt; backend wrappers library API
+<span class="w"> </span>                   mklcpu/
+<span class="w"> </span>                       blas_ct.hpp            -&gt; oneMKL Compile-time BLAS API template instantiations for &lt;mklcpu&gt;
+<span class="w"> </span>                       onemkl_blas_mklcpu.hpp -&gt; backend wrappers library API
+<span class="w"> </span>   +              newlib/
+<span class="w"> </span>   +                  blas_ct.hpp            -&gt; oneMKL Compile-time BLAS API template instantiations for &lt;newbackend&gt;
+<span class="w"> </span>   +                  onemkl_blas_newlib.hpp -&gt; backend wrappers library API
+<span class="w"> </span>                   &lt;other backends&gt;/
+<span class="w"> </span>           &lt;other domains&gt;/
+</pre></div>
+</div>
+</section>
+<section id="create-wrappers">
+<span id="generate-wrappers-and-cmake"></span><h2>3. Create Wrappers<a class="headerlink" href="#create-wrappers" title="Link to this heading">¶</a></h2>
+<p>Wrappers convert Data Parallel C++ (DPC++) input data types to third-party library data types and call corresponding implementation from the third-party library. Wrappers for each third-party library are built to separate oneMKL backend libraries. The <code class="docutils literal notranslate"><span class="pre">libonemkl.so</span></code> dispatcher library loads the wrappers at run-time if you are using the interface for run-time dispatching, or you will link with them directly in case you are using the interface for compile-time dispatching (for more information see <a class="reference external" href="../README.md#supported-usage-models">oneMKL Usage Models</a>).</p>
+<p>All wrappers and dispatcher library implementations are in the <code class="docutils literal notranslate"><span class="pre">src</span></code> directory:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">src</span><span class="o">/</span>
+    <span class="n">include</span><span class="o">/</span>
+        <span class="n">function_table_initializer</span><span class="o">.</span><span class="n">hpp</span> <span class="o">-&gt;</span> <span class="n">general</span> <span class="n">loader</span> <span class="n">implementation</span> <span class="n">w</span><span class="o">/</span> <span class="k">global</span> <span class="n">libraries</span> <span class="n">table</span>
+    <span class="n">blas</span><span class="o">/</span>
+        <span class="n">function_table</span><span class="o">.</span><span class="n">hpp</span> <span class="o">-&gt;</span> <span class="n">loaded</span> <span class="n">BLAS</span> <span class="n">functions</span> <span class="n">declaration</span>
+        <span class="n">blas_loader</span><span class="o">.</span><span class="n">cpp</span> <span class="o">-&gt;</span> <span class="n">BLAS</span> <span class="n">wrappers</span> <span class="k">for</span> <span class="n">loader</span>
+        <span class="n">backends</span><span class="o">/</span>
+            <span class="n">cublas</span><span class="o">/</span> <span class="o">-&gt;</span> <span class="n">cuBLAS</span> <span class="n">wrappers</span>
+            <span class="n">mklcpu</span><span class="o">/</span> <span class="o">-&gt;</span> <span class="n">Intel</span> <span class="n">oneMKL</span> <span class="n">CPU</span> <span class="n">wrappers</span>
+            <span class="n">mklgpu</span><span class="o">/</span> <span class="o">-&gt;</span> <span class="n">Intel</span> <span class="n">oneMKL</span> <span class="n">GPU</span> <span class="n">wrappers</span>
+            <span class="o">&lt;</span><span class="n">other</span> <span class="n">backend</span> <span class="n">libraries</span><span class="o">&gt;/</span>
+    <span class="o">&lt;</span><span class="n">other</span> <span class="n">domains</span><span class="o">&gt;/</span>
+</pre></div>
+</div>
+<p>Each backend library should contain a table of all functions from the chosen domain.</p>
+<p><code class="docutils literal notranslate"><span class="pre">scripts/generate_wrappers.py</span></code> can help to generate wrappers with the “Not implemented” exception for all functions based on the provided header file.</p>
+<p>You can modify wrappers generated with this script to enable third-party library functionality.</p>
+<p><strong>Example</strong>: generate wrappers for <code class="docutils literal notranslate"><span class="pre">newlib</span></code> based on the header files generated and integrated previously, and enable only one <code class="docutils literal notranslate"><span class="pre">asum</span></code> function</p>
+<p>The command below generates two new files:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">src/blas/backends/newlib/newlib_wrappers.cpp</span></code> - DPC++ wrappers for all functions from <code class="docutils literal notranslate"><span class="pre">include/oneapi/mkl/blas/detail/newlib/onemkl_blas_newlib.hpp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">src/blas/backends/newlib/newlib_wrappers_table_dyn.cpp</span></code> - structure of symbols for run-time dispatcher (in the same location as wrappers), suffix <code class="docutils literal notranslate"><span class="pre">_dyn</span></code> indicates that this file is required for dynamic library only.</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/generate_wrappers.py<span class="w"> </span>include/oneapi/mkl/blas/detail/newlib/onemkl_blas_newlib.hpp<span class="w"> </span><span class="se">\ </span><span class="c1"># Base header file</span>
+<span class="w">                                    </span>src/blas/function_table.hpp<span class="w"> </span><span class="se">\ </span><span class="w">                                 </span><span class="c1"># Declaration for structure of symbols</span>
+<span class="w">                                    </span>src/blas/backends/newlib/newlib_wrappers.cpp<span class="w"> </span><span class="se">\ </span><span class="w">                </span><span class="c1"># Output wrappers</span>
+<span class="w">                                    </span>newlib<span class="w">                                                         </span><span class="c1"># Library name</span>
+</pre></div>
+</div>
+<p>You can then modify <code class="docutils literal notranslate"><span class="pre">src/blas/backends/newlib/newlib_wrappers.cpp</span></code> to enable the C function <code class="docutils literal notranslate"><span class="pre">newlib_sasum</span></code> from the third-party library <code class="docutils literal notranslate"><span class="pre">libnewlib.so</span></code>.</p>
+<p>To enable this function:</p>
+<ul class="simple">
+<li><p>Include the header file <code class="docutils literal notranslate"><span class="pre">newlib.h</span></code> with the <code class="docutils literal notranslate"><span class="pre">newlib_sasum</span></code> function declaration</p></li>
+<li><p>Convert all DPC++ parameters to proper C types: use the <code class="docutils literal notranslate"><span class="pre">get_access</span></code> method for input and output DPC++ buffers to get row pointers</p></li>
+<li><p>Submit the DPC++ kernel with a C function call to <code class="docutils literal notranslate"><span class="pre">newlib</span></code> as <code class="docutils literal notranslate"><span class="pre">single_task</span></code></p></li>
+</ul>
+<p>The following code snippet is updated for <code class="docutils literal notranslate"><span class="pre">src/blas/backends/newlib/newlib_wrappers.cpp</span></code>:</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>   #if __has_include(&lt;sycl/sycl.hpp&gt;)
+<span class="w"> </span>   #include &lt;sycl/sycl.hpp&gt;
+<span class="w"> </span>   #else
+<span class="w"> </span>   #include &lt;CL/sycl.hpp&gt;
+<span class="w"> </span>   #endif
+
+<span class="w"> </span>   #include &quot;oneapi/mkl/types.hpp&quot;
+
+<span class="w"> </span>   #include &quot;oneapi/mkl/blas/detail/newlib/onemkl_blas_newlib.hpp&quot;
+<span class="gi">+</span>
+<span class="gi">+    #include &quot;newlib.h&quot;</span>
+
+<span class="w"> </span>   namespace oneapi {
+<span class="w"> </span>   namespace mkl {
+<span class="w"> </span>   namespace newlib {
+
+<span class="w"> </span>   void asum(sycl::queue &amp;queue, std::int64_t n, sycl::buffer&lt;float, 1&gt; &amp;x, std::int64_t incx,
+<span class="w"> </span>              sycl::buffer&lt;float, 1&gt; &amp;result) {
+<span class="gd">-       throw std::runtime_error(&quot;Not implemented for newlib&quot;);</span>
+<span class="gi">+       queue.submit([&amp;](sycl::handler &amp;cgh) {</span>
+<span class="gi">+           auto accessor_x      = x.get_access&lt;sycl::access::mode::read&gt;(cgh);</span>
+<span class="gi">+           auto accessor_result = result.get_access&lt;sycl::access::mode::write&gt;(cgh);</span>
+<span class="gi">+           cgh.single_task&lt;class newlib_sasum&gt;([=]() {</span>
+<span class="gi">+               accessor_result[0] = ::newlib_sasum((const int)n, accessor_x.get_pointer(), (const int)incx);</span>
+<span class="gi">+           });</span>
+<span class="gi">+       });</span>
+<span class="w"> </span>   }
+
+<span class="w"> </span>   void asum(sycl::queue &amp;queue, std::int64_t n, sycl::buffer&lt;double, 1&gt; &amp;x, std::int64_t incx,
+<span class="w"> </span>             sycl::buffer&lt;double, 1&gt; &amp;result) {
+<span class="w"> </span>       throw std::runtime_error(&quot;Not implemented for newlib&quot;);
+<span class="w"> </span>   }
+</pre></div>
+</div>
+<p>Updated structure of the <code class="docutils literal notranslate"><span class="pre">src</span></code> folder with the <code class="docutils literal notranslate"><span class="pre">newlib</span></code> wrappers:</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span>src/
+<span class="w"> </span>   blas/
+<span class="w"> </span>       loader.hpp -&gt; general loader implementation w/ global libraries table
+<span class="w"> </span>       function_table.hpp -&gt; loaded BLAS functions declaration
+<span class="w"> </span>       blas_loader.cpp -&gt; BLAS wrappers for loader
+<span class="w"> </span>       backends/
+<span class="w"> </span>           cublas/ -&gt; cuBLAS wrappers
+<span class="w"> </span>           mklcpu/ -&gt; Intel oneMKL CPU wrappers
+<span class="w"> </span>           mklgpu/ -&gt; Intel oneMKL GPU wrappers
+<span class="w"> </span>+          newlib/
+<span class="w"> </span>+              newlib.h
+<span class="w"> </span>+              newlib_wrappers.cpp
+<span class="w"> </span>+              newlib_wrappers_table_dyn.cpp
+<span class="w"> </span>           &lt;other backend libraries&gt;/
+<span class="w"> </span>   &lt;other domains&gt;/
+</pre></div>
+</div>
+</section>
+<section id="integrate-wrappers-to-the-build-system">
+<span id="integrate-backend-to-build-system"></span><h2>4. Integrate Wrappers to the Build System<a class="headerlink" href="#integrate-wrappers-to-the-build-system" title="Link to this heading">¶</a></h2>
+<p>Here is the list of files that should be created/updated to integrate the new wrappers for the third-party library to the oneMKL build system:</p>
+<ul>
+<li><p>Add the new option <code class="docutils literal notranslate"><span class="pre">ENABLE_XXX_BACKEND</span></code> for the new third-party library to the top of the <code class="docutils literal notranslate"><span class="pre">CMakeList.txt</span></code> file.</p>
+<p><strong>Example</strong>: changes for <code class="docutils literal notranslate"><span class="pre">newlib</span></code> in the top of the <code class="docutils literal notranslate"><span class="pre">CMakeList.txt</span></code> file</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>   option(ENABLE_MKLCPU_BACKEND &quot;&quot; ON)
+<span class="w"> </span>   option(ENABLE_MKLGPU_BACKEND &quot;&quot; ON)
+<span class="gi">+   option(ENABLE_NEWLIB_BACKEND &quot;&quot; ON)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Add the new directory (<code class="docutils literal notranslate"><span class="pre">src/&lt;domain&gt;/backends/&lt;new_directory&gt;</span></code>) with the wrappers for the new third-party library under the <code class="docutils literal notranslate"><span class="pre">ENABLE_XXX_BACKEND</span></code> condition to the <code class="docutils literal notranslate"><span class="pre">src/&lt;domain&gt;/backends/CMakeList.txt</span></code> file.</p>
+<p><strong>Example</strong>: changes for <code class="docutils literal notranslate"><span class="pre">newlib</span></code> in <code class="docutils literal notranslate"><span class="pre">src/blas/backends/CMakeLists.txt</span></code></p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>   if(ENABLE_MKLCPU_BACKEND)
+<span class="w"> </span>       add_subdirectory(mklcpu)
+<span class="w"> </span>   endif()
+<span class="gi">+</span>
+<span class="gi">+   if(ENABLE_NEWLIB_BACKEND)</span>
+<span class="gi">+       add_subdirectory(newlib)</span>
+<span class="gi">+   endif()</span>
+</pre></div>
+</div>
+</li>
+<li><p>Create the <code class="docutils literal notranslate"><span class="pre">cmake/FindXXX.cmake</span></code> cmake config file to find the new third-party library and its dependencies.</p>
+<p><strong>Example</strong>: new config file <code class="docutils literal notranslate"><span class="pre">cmake/FindNEWLIB.cmake</span></code> for <code class="docutils literal notranslate"><span class="pre">newlib</span></code></p>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="nb">include_guard</span><span class="p">()</span>
+<span class="c"># Find library by name in NEWLIB_ROOT cmake variable or environment variable NEWLIBROOT</span>
+<span class="nb">find_library</span><span class="p">(</span><span class="s">NEWLIB_LIBRARY</span><span class="w"> </span><span class="s">NAMES</span><span class="w"> </span><span class="s">newlib</span>
+<span class="w">    </span><span class="s">HINTS</span><span class="w"> </span><span class="o">${</span><span class="nv">NEWLIB_ROOT</span><span class="o">}</span><span class="w"> </span><span class="o">$ENV{</span><span class="nv">NEWLIBROOT</span><span class="o">}</span>
+<span class="w">    </span><span class="s">PATH_SUFFIXES</span><span class="w"> </span><span class="s2">&quot;lib&quot;</span><span class="p">)</span>
+<span class="c"># Make sure that the library was found</span>
+<span class="nb">include</span><span class="p">(</span><span class="s">FindPackageHandleStandardArgs</span><span class="p">)</span>
+<span class="nb">find_package_handle_standard_args</span><span class="p">(</span><span class="s">NEWLIB</span><span class="w"> </span><span class="s">REQUIRED_VARS</span><span class="w"> </span><span class="s">NEWLIB_LIBRARY</span><span class="p">)</span>
+<span class="c"># Set cmake target for the library</span>
+<span class="nb">add_library</span><span class="p">(</span><span class="s">ONEMKL::NEWLIB::NEWLIB</span><span class="w"> </span><span class="s">UNKNOWN</span><span class="w"> </span><span class="s">IMPORTED</span><span class="p">)</span>
+<span class="nb">set_target_properties</span><span class="p">(</span><span class="s">ONEMKL::NEWLIB::NEWLIB</span><span class="w"> </span><span class="s">PROPERTIES</span>
+<span class="w">    </span><span class="s">IMPORTED_LOCATION</span><span class="w"> </span><span class="o">${</span><span class="nv">NEWLIB_LIBRARY</span><span class="o">}</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Create the <code class="docutils literal notranslate"><span class="pre">src/&lt;domain&gt;/backends/&lt;new_directory&gt;/CMakeList.txt</span></code> cmake config file to specify how to build the backend layer for the new third-party library.</p>
+<p><code class="docutils literal notranslate"><span class="pre">scripts/generate_cmake.py</span></code> can help to generate the initial <code class="docutils literal notranslate"><span class="pre">src/&lt;domain&gt;/backends/&lt;new_directory&gt;/CMakeList.txt</span></code> config file automatically for all files in the directory.
+Note: all source files with the <code class="docutils literal notranslate"><span class="pre">_dyn</span></code> suffix are added to build if the target is a dynamic library only.</p>
+<p><strong>Example</strong>: command to generate the cmake config file for the <code class="docutils literal notranslate"><span class="pre">src/blas/backends/newlib</span></code> directory</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/generate_cmake.py<span class="w"> </span>src/blas/backends/newlib<span class="w"> </span><span class="se">\ </span><span class="c1"># Full path to the directory</span>
+<span class="w">                                 </span>newlib<span class="w">                     </span><span class="c1"># Library name</span>
+</pre></div>
+</div>
+<p>You should manually update the generated config file with information about the new <code class="docutils literal notranslate"><span class="pre">cmake/FindXXX.cmake</span></code> file and instructions about how to link with the third-party library.</p>
+<p><strong>Example</strong>: update the generated <code class="docutils literal notranslate"><span class="pre">src/blas/backends/newlib/CMakeLists.txt</span></code> file</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>   # Add third-party library
+<span class="gd">-   # find_package(XXX REQUIRED)</span>
+<span class="gi">+   find_package(NEWLIB REQUIRED)</span>
+</pre></div>
+</div>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>   target_link_libraries(${LIB_OBJ}
+<span class="w"> </span>       PUBLIC ONEMKL::SYCL::SYCL
+<span class="gd">-       # Add third-party library to link with here</span>
+<span class="gi">+       PUBLIC ONEMKL::NEWLIB::NEWLIB</span>
+<span class="w"> </span>   )
+</pre></div>
+</div>
+</li>
+</ul>
+<p>Now you can build the backend library for <code class="docutils literal notranslate"><span class="pre">newlib</span></code> to make sure the third-party library integration was completed successfully (for more information, see <a class="reference external" href="../README.md#building-with-cmake">Build with cmake</a>)</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>build/
+cmake<span class="w"> </span>..<span class="w"> </span>-DNEWLIB_ROOT<span class="o">=</span>&lt;path/to/newlib&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-DENABLE_MKLCPU_BACKEND<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-DENABLE_MKLGPU_BACKEND<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-DENABLE_NEWLIB_BACKEND<span class="o">=</span>ON<span class="w"> </span><span class="se">\ </span><span class="w">          </span><span class="c1"># Enable new third-party library backend</span>
+<span class="w">    </span>-DBUILD_FUNCTIONAL_TESTS<span class="o">=</span>OFF<span class="w">           </span><span class="c1"># At this step we want build only</span>
+cmake<span class="w"> </span>--build<span class="w"> </span>.<span class="w"> </span>-j4
+</pre></div>
+</div>
+</section>
+<section id="update-the-test-system">
+<span id="integrate-backend-to-test-system"></span><h2>5. Update the Test System<a class="headerlink" href="#update-the-test-system" title="Link to this heading">¶</a></h2>
+<p>Update the following files to enable the new third-party library for unit tests:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">src/config.hpp.in</span></code>: add a cmake option for the new third-party library so this macro can be propagated to unit tests</p>
+<p><strong>Example</strong>: add <code class="docutils literal notranslate"><span class="pre">ENABLE_NEWLIB_BACKEND</span></code></p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  #cmakedefine ENABLE_MKLCPU_BACKEND
+<span class="gi">+  #cmakedefine ENABLE_NEWLIB_BACKEND</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/unit_tests/CMakeLists.txt</span></code>: add instructions about how to link tests with the new backend library</p>
+<p><strong>Example</strong>: add the <code class="docutils literal notranslate"><span class="pre">newlib</span></code> backend library</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  if(ENABLE_MKLCPU_BACKEND)
+<span class="w"> </span>      add_dependencies(test_main_ct onemkl_blas_mklcpu)
+<span class="w"> </span>      if(BUILD_SHARED_LIBS)
+<span class="w"> </span>          list(APPEND ONEMKL_LIBRARIES onemkl_blas_mklcpu)
+<span class="w"> </span>      else()
+<span class="w"> </span>          list(APPEND ONEMKL_LIBRARIES -foffload-static-lib=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libonemkl_blas_mklcpu.a)
+<span class="w"> </span>          find_package(MKL REQUIRED)
+<span class="w"> </span>          list(APPEND ONEMKL_LIBRARIES ${MKL_LINK_C})
+<span class="w"> </span>      endif()
+<span class="w"> </span>  endif()
+<span class="gi">+</span>
+<span class="gi">+    if(ENABLE_NEWLIB_BACKEND)</span>
+<span class="gi">+       add_dependencies(test_main_ct onemkl_blas_newlib)</span>
+<span class="gi">+       if(BUILD_SHARED_LIBS)</span>
+<span class="gi">+           list(APPEND ONEMKL_LIBRARIES onemkl_blas_newlib)</span>
+<span class="gi">+       else()</span>
+<span class="gi">+           list(APPEND ONEMKL_LIBRARIES -foffload-static-lib=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libonemkl_blas_newlib.a)</span>
+<span class="gi">+           find_package(NEWLIB REQUIRED)</span>
+<span class="gi">+           list(APPEND ONEMKL_LIBRARIES ONEMKL::NEWLIB::NEWLIB)</span>
+<span class="gi">+       endif()</span>
+<span class="gi">+   endif()</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/unit_tests/include/test_helper.hpp</span></code>: add the helper function for the compile-time dispatching interface with the new backend, and specify the device for which it should be called</p>
+<p><strong>Example</strong>: add the helper function for the <code class="docutils literal notranslate"><span class="pre">newlib</span></code> compile-time dispatching interface with <code class="docutils literal notranslate"><span class="pre">newdevice</span></code> if it is the Host</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  #ifdef ENABLE_MKLGPU_BACKEND
+<span class="w"> </span>      #define TEST_RUN_INTELGPU(q, func, args) \
+<span class="w"> </span>          func&lt;oneapi::mkl::backend::mklgpu&gt; args
+<span class="w"> </span>  #else
+<span class="w"> </span>      #define TEST_RUN_INTELGPU(q, func, args)
+<span class="w"> </span>  #endif
+<span class="gi">+</span>
+<span class="gi">+  #ifdef ENABLE_NEWLIB_BACKEND</span>
+<span class="gi">+     #define TEST_RUN_NEWDEVICE(q, func, args) \</span>
+<span class="gi">+         func&lt;oneapi::mkl::backend::newbackend&gt; args</span>
+<span class="gi">+  #else</span>
+<span class="gi">+      #define TEST_RUN_NEWDEVICE(q, func, args)</span>
+<span class="gi">+  #endif</span>
+</pre></div>
+</div>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>  #define TEST_RUN_CT(q, func, args)               \
+<span class="w"> </span>      do {                                         \
+<span class="gi">+          if (q.is_host())                         \</span>
+<span class="gi">+              TEST_RUN_NEWDEVICE(q, func, args);   \</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/unit_tests/main_test.cpp</span></code>: add the targeted device to the vector of devices to test</p>
+<p><strong>Example</strong>: add the targeted device CPU for <code class="docutils literal notranslate"><span class="pre">newlib</span></code></p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>          }
+<span class="w"> </span>      }
+<span class="gi">+</span>
+<span class="gi">+  #ifdef ENABLE_NEWLIB_BACKEND</span>
+<span class="gi">+      devices.push_back(sycl::device(sycl::host_selector()));</span>
+<span class="gi">+  #endif</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>Now you can build and run functional testing for enabled third-party libraries (for more information see <a class="reference external" href="../README.md#building-with-cmake">Build with cmake</a>).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>build/
+cmake<span class="w"> </span>..<span class="w"> </span>-DNEWLIB_ROOT<span class="o">=</span>&lt;path/to/newlib&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-DENABLE_MKLCPU_BACKEND<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-DENABLE_MKLGPU_BACKEND<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-DENABLE_NEWLIB_BACKEND<span class="o">=</span>ON<span class="w">  </span><span class="se">\</span>
+<span class="w">    </span>-DBUILD_FUNCTIONAL_TESTS<span class="o">=</span>ON
+cmake<span class="w"> </span>--build<span class="w"> </span>.<span class="w"> </span>-j4
+ctest
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">oneAPI Math Kernel Library Interfaces</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="selecting_a_compiler.html">Selecting a Compiler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="building_the_project.html">Building the Project</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="onemkl-datatypes.html">oneMKL Defined Datatypes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="domains/dense_linear_algebra.html">Dense Linear Algebra</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Integrating a Third-Party Library to oneAPI Math Kernel Library (oneMKL) Interfaces</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#create-header-files">1. Create Header Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#integrate-header-files">2. Integrate Header Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-wrappers">3. Create Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#integrate-wrappers-to-the-build-system">4. Integrate Wrappers to the Build System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#update-the-test-system">5. Update the Test System</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="domains/lapack/ungqr_batch_scratchpad_size.html" title="previous chapter">ungqr_batch_scratchpad_size</a></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2020, Intel Corporation.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+      |
+      <a href="_sources/create_new_backend.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
