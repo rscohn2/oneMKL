@@ -11,11 +11,11 @@ on:
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
   LAPACK_VERSION: 3.12.0
-  PARALLEL: -j 2
+  PARALLEL: -j 16
 
 jobs:
   mkl:
-    runs-on: intel-ubuntu-latest
+    runs-on: uxl-ubuntu-latest-X64
     # One runner for each domain
     strategy:
       matrix:
