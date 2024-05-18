@@ -15,7 +15,7 @@ env:
 
 jobs:
   mkl:
-    runs-on: uxl-ubuntu-latest-X64
+    runs-on: uxl-onemkl-ubuntu-x86
     # One runner for each domain
     strategy:
       matrix:
