@@ -65,7 +65,7 @@ jobs:
         cmake --build lapack/build64 ${PARALLEL} --target install
     - name: Test if the changes affect this domain
       id: test_domain
-      uses: actions/github-script@v4
+      uses: actions/github-script@v7
       with:
         script: |
           function matchesPattern(filePaths) {
