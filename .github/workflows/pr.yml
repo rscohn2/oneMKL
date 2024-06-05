@@ -70,7 +70,7 @@ jobs:
         script: |
           function matchesPattern(filePaths) {
             console.log('files:', filePaths)
-            # These directories contain domain specific code
+            // These directories contain domain specific code
             const dirs = '(tests/unit_tests|examples|src|include/oneapi/mkl)'
             const domains = '(blas|lapack|rng|dft)'
             const domain = '${{ matrix.domain }}'
