@@ -1,5 +1,5 @@
 name: "PR Tests"
-# permissions: read-all
+permissions: read-all
 
 # Trigger for PR an merge to develop branch
 on:
@@ -65,7 +65,7 @@ jobs:
         cmake --build lapack/build64 ${PARALLEL} --target install
     - name: Test if the changes affect this domain
       id: test_domain
-      uses: actions/github-script@v7
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       with:
         script: |
           function matchesPattern(filePaths) {
