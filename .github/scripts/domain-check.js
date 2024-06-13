@@ -24,7 +24,7 @@ function prFiles(github, context) {
   return prFiles
 }
 module.exports = ({github, context}) => {
-    return context.rest.pulls;
+    return github.rest.pulls;
   }
 /*
 module.exports = ({github, context}) => {
