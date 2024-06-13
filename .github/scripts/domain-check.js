@@ -23,17 +23,14 @@ function prFiles(github, context) {
   console.log("PR files: ", prFiles)
   return prFiles
 }
-module.exports = ({github, context}) => {
-    return github.rest.pulls;
-  }
-/*
+
 module.exports = ({github, context}) => {
     const domain = "blas";
     const match = matchesPattern(domain, prFiles(github, context));
     console.log("domain: ", domain, " Match: ", match)
     return match;
 }
-*/
+
 test_patterns = [
     {
         domain: 'blas',
