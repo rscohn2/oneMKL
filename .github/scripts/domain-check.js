@@ -21,15 +21,15 @@ async function prFiles(github, context) {
     pull_number: pr.number
   });
   const prFiles = response.data.map(file => file.filename);
-  console.log("PR files: ", prFiles);
   return prFiles;
 }
 
 module.exports = async ({github, context, domain}) => {
-    //const domain = "blas";
     const files = await prFiles(github, context);
     const match = matchesPattern(domain, files);
-    console.log("domain: ", domain, " Match: ", match);
+    console.log("Domain: ", domain)
+    console.log("PR files: ", files);
+    console.log("Match: ", match);
     return match;
 }
 
