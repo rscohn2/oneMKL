@@ -11,20 +11,20 @@ function matchesPattern(domain, filePaths) {
 }
 
 async function prFiles(github, context) {
-  const pr = context.payload.pull_request;
-  if (!pr) {
-    return [];
-  }
   const response = await github.rest.pulls.listFiles({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    pull_number: pr.number
+    pull_number: context.payload.pull_request.number
   });
   const prFiles = response.data.map(file => file.filename);
   return prFiles;
 }
 
 module.exports = async ({github, context, domain}) => {
+    if (!context.payload.pull_request) {
+        console.log('Not a pull request. Testing all domains.');
+        return true;
+    }
     const files = await prFiles(github, context);
     const match = matchesPattern(domain, files);
     console.log("Domain: ", domain)
