@@ -25,8 +25,8 @@ async function prFiles(github, context) {
   return prFiles;
 }
 
-module.exports = async ({github, context}) => {
-    const domain = "blas";
+module.exports = async ({github, context, domain}) => {
+    //const domain = "blas";
     const files = await prFiles(github, context);
     const match = matchesPattern(domain, files);
     console.log("domain: ", domain, " Match: ", match);
