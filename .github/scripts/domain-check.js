@@ -24,7 +24,8 @@ function prFiles(context, github) {
   return prFiles
 }
 
-module.exports = ({domain, github, context}) => {
+module.exports = ({github, context}) => {
+    const domain = "blas";
     const match = matchesPattern(domain, prFiles(context, github));
     console.log("domain: ", domain, " Match: ", match)
     return match;
