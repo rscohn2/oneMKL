@@ -10,24 +10,26 @@ function matchesPattern(domain, filePaths) {
     return match;
 }
 
-function prFiles(github, context) {
-  const pr = context.payload.pull_request
+async function prFiles(github, context) {
+  const pr = context.payload.pull_request;
   if (!pr) {
-    return []
+    return [];
   }
-  const prFiles = github.rest.pulls.listFiles({
+  const response = await github.rest.pulls.listFiles({
     owner: context.repo.owner,
     repo: context.repo.repo,
     pull_number: pr.number
   });
-  console.log("PR files: ", prFiles)
-  return prFiles
+  const prFiles = response.data.map(file => file.filename);
+  console.log("PR files: ", prFiles);
+  return prFiles;
 }
 
-module.exports = ({github, context}) => {
+module.exports = async ({github, context}) => {
     const domain = "blas";
-    const match = matchesPattern(domain, prFiles(github, context));
-    console.log("domain: ", domain, " Match: ", match)
+    const files = await prFiles(github, context);
+    const match = matchesPattern(domain, files);
+    console.log("domain: ", domain, " Match: ", match);
     return match;
 }
 
