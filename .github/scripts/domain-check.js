@@ -23,7 +23,7 @@ function prFiles(github, context) {
   console.log("PR files: ", prFiles)
   return prFiles
 }
-module.exports = ({github, context}) => {
+module.exports = ({context}) => {
     return context.payload.client_payload.value
   }
 /*
