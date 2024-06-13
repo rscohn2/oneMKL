@@ -10,7 +10,7 @@ function matchesPattern(domain, filePaths) {
     return match;
 }
 
-function prFiles(context, github) {
+function prFiles(github, context) {
   const pr = context.payload.pull_request
   if (!pr) {
     return []
@@ -23,14 +23,17 @@ function prFiles(context, github) {
   console.log("PR files: ", prFiles)
   return prFiles
 }
-
+module.exports = ({github, context}) => {
+    return context.payload.client_payload.value
+  }
+/*
 module.exports = ({github, context}) => {
     const domain = "blas";
-    const match = matchesPattern(domain, prFiles(context, github));
+    const match = matchesPattern(domain, prFiles(github, context));
     console.log("domain: ", domain, " Match: ", match)
     return match;
 }
-
+*/
 test_patterns = [
     {
         domain: 'blas',
