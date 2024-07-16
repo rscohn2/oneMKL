@@ -219,3 +219,4 @@ INSTANTIATE_TEST_SUITE_P(AxpyBatchStrideUsmTestSuite, AxpyBatchStrideUsmTests,
                          ::LayoutDeviceNamePrint());
 
 } // anonymous namespace
+//

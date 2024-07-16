@@ -383,3 +383,4 @@ INSTANTIATE_TEST_SUITE_P(GemmBiasTestSuite, GemmBiasTests,
                          ::LayoutDeviceNamePrint());
 
 } // anonymous namespace
+//

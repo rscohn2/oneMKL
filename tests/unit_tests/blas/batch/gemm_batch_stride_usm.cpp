@@ -322,3 +322,4 @@ INSTANTIATE_TEST_SUITE_P(GemmBatchStrideUsmTestSuite, GemmBatchStrideUsmTests,
                          ::LayoutDeviceNamePrint());
 
 } // anonymous namespace
+//
