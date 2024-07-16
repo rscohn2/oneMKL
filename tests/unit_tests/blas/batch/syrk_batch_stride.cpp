@@ -225,3 +225,4 @@ INSTANTIATE_TEST_SUITE_P(SyrkBatchStrideTestSuite, SyrkBatchStrideTests,
                          ::LayoutDeviceNamePrint());
 
 } // anonymous namespace
+//

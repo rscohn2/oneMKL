@@ -173,3 +173,4 @@ INSTANTIATE_TEST_SUITE_P(Nrm2TestSuite, Nrm2Tests,
                          ::LayoutDeviceNamePrint());
 
 } // anonymous namespace
+//

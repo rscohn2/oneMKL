@@ -250,3 +250,4 @@ INSTANTIATE_TEST_SUITE_P(DgmmBatchStrideTestSuite, DgmmBatchStrideTests,
                          ::LayoutDeviceNamePrint());
 
 } // anonymous namespace
+//

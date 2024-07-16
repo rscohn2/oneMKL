@@ -255,3 +255,4 @@ INSTANTIATE_TEST_SUITE_P(DgmmBatchStrideUsmTestSuite, DgmmBatchStrideUsmTests,
                          ::LayoutDeviceNamePrint());
 
 } // anonymous namespace
+//

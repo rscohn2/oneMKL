@@ -205,3 +205,4 @@ INSTANTIATE_TEST_SUITE_P(OmatcopyBatchStrideTestSuite, OmatcopyBatchStrideTests,
                          ::LayoutDeviceNamePrint());
 
 } // anonymous namespace
+//
